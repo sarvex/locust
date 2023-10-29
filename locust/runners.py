@@ -213,12 +213,11 @@ class Runner:
         return self.cpu_warning_emitted
 
     def spawn_users(self, user_classes_spawn_count: Dict[str, int], wait: bool = False):
-        if self.state == STATE_INIT or self.state == STATE_STOPPED:
+        if self.state in [STATE_INIT, STATE_STOPPED]:
             self.update_state(STATE_SPAWNING)
 
         logger.debug(
-            "Spawning additional %s (%s already running)..."
-            % (json.dumps(user_classes_spawn_count), json.dumps(self.user_classes_count))
+            f"Spawning additional {json.dumps(user_classes_spawn_count)} ({json.dumps(self.user_classes_count)} already running)..."
         )
 
         def spawn(user_class: str, spawn_count: int) -> List[User]:
@@ -231,7 +230,7 @@ class Runner:
                 n += 1
                 if n % 10 == 0 or n == spawn_count:
                     logger.debug("%i users spawned" % self.user_count)
-            logger.debug("All users of class %s spawned" % user_class)
+            logger.debug(f"All users of class {user_class} spawned")
             return new_users
 
         new_users: List[User] = []
@@ -270,7 +269,7 @@ class Runner:
 
             while True:
                 user_to_stop: User = to_stop.pop()
-                logger.debug("Stopping %s" % user_to_stop.greenlet.name)
+                logger.debug(f"Stopping {user_to_stop.greenlet.name}")
                 if user_to_stop.greenlet is greenlet.getcurrent():
                     # User called runner.quit(), so don't block waiting for killing to finish
                     user_to_stop.group.killone(user_to_stop.greenlet, block=False)
@@ -286,8 +285,7 @@ class Runner:
 
         if not stop_group.join(timeout=self.environment.stop_timeout):
             logger.info(
-                "Not all users finished their tasks & terminated in %s seconds. Stopping them..."
-                % self.environment.stop_timeout
+                f"Not all users finished their tasks & terminated in {self.environment.stop_timeout} seconds. Stopping them..."
             )
             stop_group.kill(block=True)
 
@@ -332,7 +330,7 @@ class Runner:
 
     def shape_worker(self) -> None:
         logger.info("Shape worker starting")
-        while self.state == STATE_INIT or self.state == STATE_SPAWNING or self.state == STATE_RUNNING:
+        while self.state in [STATE_INIT, STATE_SPAWNING, STATE_RUNNING]:
             current_tick = self.environment.shape_class.tick() if self.environment.shape_class is not None else None
             if current_tick is None:
                 logger.info("Shape test stopping")
@@ -463,7 +461,7 @@ class LocalRunner(Runner):
         """
         self.target_user_count = user_count
 
-        if self.state != STATE_RUNNING and self.state != STATE_SPAWNING:
+        if self.state not in [STATE_RUNNING, STATE_SPAWNING]:
             self.stats.clear_all()
             self.exceptions = {}
             self.cpu_warning_emitted = False
@@ -478,7 +476,7 @@ class LocalRunner(Runner):
             if self.environment.host:
                 user_class.host = self.environment.host
 
-        if self.state != STATE_INIT and self.state != STATE_STOPPED:
+        if self.state not in [STATE_INIT, STATE_STOPPED]:
             self.update_state(STATE_SPAWNING)
 
         if self._users_dispatcher is None:
@@ -495,7 +493,9 @@ class LocalRunner(Runner):
                 user_classes_spawn_count: Dict[str, int] = {}
                 user_classes_stop_count: Dict[str, int] = {}
                 user_classes_count = dispatched_users[self._local_worker_node.id]
-                logger.debug("Ramping to %s" % _format_user_classes_count_for_log(user_classes_count))
+                logger.debug(
+                    f"Ramping to {_format_user_classes_count_for_log(user_classes_count)}"
+                )
                 for user_class_name, user_class_count in user_classes_count.items():
                     if self.user_classes_count[user_class_name] > user_class_count:
                         user_classes_stop_count[user_class_name] = (
@@ -558,7 +558,7 @@ class LocalRunner(Runner):
         :param msg_type: The type of the message to emulate sending
         :param data: Optional data to include
         """
-        logger.debug("Running locally: sending %s message to self" % msg_type)
+        logger.debug(f"Running locally: sending {msg_type} message to self")
         if msg_type in self.custom_messages:
             listener = self.custom_messages[msg_type]
             msg = Message(msg_type, data, "local")
@@ -663,7 +663,9 @@ class MasterRunner(DistributedRunner):
         except RPCError as e:
             if e.args[0] == "Socket bind failure: Address already in use":
                 port_string = (
-                    master_bind_host + ":" + str(master_bind_port) if master_bind_host != "*" else str(master_bind_port)
+                    f"{master_bind_host}:{str(master_bind_port)}"
+                    if master_bind_host != "*"
+                    else str(master_bind_port)
                 )
                 logger.error(
                     f"The Locust master port ({port_string}) was busy. Close any applications using that port - perhaps an old instance of Locust master is still running? ({e.args[0]})"
@@ -712,7 +714,7 @@ class MasterRunner(DistributedRunner):
 
     @property
     def user_count(self) -> int:
-        return sum([c.user_count for c in self.clients.values()])
+        return sum(c.user_count for c in self.clients.values())
 
     def cpu_log_warning(self) -> bool:
         warning_emitted = Runner.cpu_log_warning(self)
@@ -749,13 +751,13 @@ class MasterRunner(DistributedRunner):
             % (user_count, spawn_rate, num_workers)
         )
 
-        worker_spawn_rate = float(spawn_rate) / (num_workers or 1)
+        worker_spawn_rate = spawn_rate / (num_workers or 1)
         if worker_spawn_rate > 100:
             logger.warning(
                 "Your selected spawn rate is very high (>100/worker), and this is known to sometimes cause issues. Do you really need to ramp up that fast?"
             )
 
-        if self.state != STATE_RUNNING and self.state != STATE_SPAWNING:
+        if self.state not in [STATE_RUNNING, STATE_SPAWNING]:
             self.stats.clear_all()
             self.exceptions = {}
             self.environment._filter_tasks_by_tags()
@@ -848,52 +850,54 @@ class MasterRunner(DistributedRunner):
             r"^(?P<coeff>(\d+)|(\d+\.\d+))[ ]*\*[ ]*WORKER_REPORT_INTERVAL$",
             locust_wait_for_workers_report_after_ramp_up,
         )
-        if match is None:
-            assert float(locust_wait_for_workers_report_after_ramp_up) >= 0
-            return float(locust_wait_for_workers_report_after_ramp_up)
-        else:
+        if match is not None:
             return float(match.group("coeff")) * WORKER_REPORT_INTERVAL
+        assert float(locust_wait_for_workers_report_after_ramp_up) >= 0
+        return float(locust_wait_for_workers_report_after_ramp_up)
 
     def stop(self, send_stop_to_client: bool = True) -> None:
-        if self.state not in [STATE_INIT, STATE_STOPPED, STATE_STOPPING]:
-            logger.debug("Stopping...")
-            self.environment.events.test_stopping.fire(environment=self.environment)
-            self.final_user_classes_count = {**self.reported_user_classes_count}
-            self.update_state(STATE_STOPPING)
+        if self.state in [STATE_INIT, STATE_STOPPED, STATE_STOPPING]:
+            return
+        logger.debug("Stopping...")
+        self.environment.events.test_stopping.fire(environment=self.environment)
+        self.final_user_classes_count = {**self.reported_user_classes_count}
+        self.update_state(STATE_STOPPING)
 
-            if (
-                self.environment.shape_class is not None
-                and self.shape_greenlet is not None
-                and self.shape_greenlet is not greenlet.getcurrent()
-            ):
-                self.shape_greenlet.kill(block=True)
-                self.shape_greenlet = None
-                self.shape_last_tick = None
+        if (
+            self.environment.shape_class is not None
+            and self.shape_greenlet is not None
+            and self.shape_greenlet is not greenlet.getcurrent()
+        ):
+            self.shape_greenlet.kill(block=True)
+            self.shape_greenlet = None
+            self.shape_last_tick = None
 
-            self._users_dispatcher = None
+        self._users_dispatcher = None
 
-            if send_stop_to_client:
-                for client in self.clients.all:
-                    logger.debug("Sending stop message to worker %s" % client.id)
-                    self.server.send_to_client(Message("stop", None, client.id))
+        if send_stop_to_client:
+            for client in self.clients.all:
+                logger.debug(f"Sending stop message to worker {client.id}")
+                self.server.send_to_client(Message("stop", None, client.id))
 
-                # Give an additional 60s for all workers to stop
-                timeout = gevent.Timeout(self.environment.stop_timeout + 60)
-                timeout.start()
-                try:
-                    while self.user_count != 0:
-                        gevent.sleep(1)
-                except gevent.Timeout:
-                    logger.error("Timeout waiting for all workers to stop")
-                finally:
-                    timeout.cancel()
-            self.environment.events.test_stop.fire(environment=self.environment)
+            # Give an additional 60s for all workers to stop
+            timeout = gevent.Timeout(self.environment.stop_timeout + 60)
+            timeout.start()
+            try:
+                while self.user_count != 0:
+                    gevent.sleep(1)
+            except gevent.Timeout:
+                logger.error("Timeout waiting for all workers to stop")
+            finally:
+                timeout.cancel()
+        self.environment.events.test_stop.fire(environment=self.environment)
 
     def quit(self) -> None:
         self.stop(send_stop_to_client=False)
         logger.debug("Quitting...")
         for client in self.clients.all:
-            logger.debug("Sending quit message to worker %s (index %s)" % (client.id, self.get_worker_index(client.id)))
+            logger.debug(
+                f"Sending quit message to worker {client.id} (index {self.get_worker_index(client.id)})"
+            )
             self.server.send_to_client(Message("quit", None, client.id))
         gevent.sleep(0.5)  # wait for final stats report from all workers
         self.greenlet.kill(block=True)
@@ -935,11 +939,11 @@ class MasterRunner(DistributedRunner):
                     client.heartbeat -= 1
 
             # if there are any missing clients to be removed then remove them and trigger rebalance.
-            if len(missing_clients_to_be_removed) > 0:
+            if missing_clients_to_be_removed:
                 for to_remove_client_id in missing_clients_to_be_removed:
                     if self.clients.get(to_remove_client_id) is not None:
                         del self.clients[to_remove_client_id]
-                if self.state == STATE_RUNNING or self.state == STATE_SPAWNING:
+                if self.state in [STATE_RUNNING, STATE_SPAWNING]:
                     # _users_dispatcher is set to none so that during redistribution the dead clients are not picked, alternative is to call self.stop() before start
                     self._users_dispatcher = None
                     # trigger redistribution after missing cclient removal
@@ -984,8 +988,7 @@ class MasterRunner(DistributedRunner):
                     logger.error(f"RPCError: {e}. Will reset RPC server.")
                 else:
                     logger.debug(
-                        "RPCError when receiving from worker: %s (but no workers were expected to be connected anyway)"
-                        % (e)
+                        f"RPCError when receiving from worker: {e} (but no workers were expected to be connected anyway)"
                     )
                 self.connection_broken = True
                 gevent.sleep(FALLBACK_INTERVAL)
@@ -994,8 +997,8 @@ class MasterRunner(DistributedRunner):
                 if not msg.data:
                     logger.error(f"An old (pre 2.0) worker tried to connect ({client_id}). That's not going to work.")
                     continue
-                elif msg.data != __version__ and msg.data != -1:
-                    if msg.data[0:4] == __version__[0:4]:
+                elif msg.data not in [__version__, -1]:
+                    if msg.data[:4] == __version__[:4]:
                         logger.debug(
                             f"A worker ({client_id}) running a different patch version ({msg.data}) connected, master version is {__version__}"
                         )
@@ -1016,9 +1019,9 @@ class MasterRunner(DistributedRunner):
                 )
                 if self.rebalancing_enabled() and self.state == STATE_RUNNING and self.spawning_completed:
                     self.start(self.target_user_count, self.spawn_rate)
-                # emit a warning if the worker's clock seem to be out of sync with our clock
-                # if abs(time() - msg.data["time"]) > 5.0:
-                #    warnings.warn("The worker node's clock seem to be out of sync. For the statistics to be correct the different locust servers need to have synchronized clocks.")
+                        # emit a warning if the worker's clock seem to be out of sync with our clock
+                        # if abs(time() - msg.data["time"]) > 5.0:
+                        #    warnings.warn("The worker node's clock seem to be out of sync. For the statistics to be correct the different locust servers need to have synchronized clocks.")
             elif msg.type == "client_stopped":
                 if msg.node_id not in self.clients:
                     logger.warning(f"Received {msg.type} message from an unknown worker: {msg.node_id}.")
@@ -1119,11 +1122,11 @@ class MasterRunner(DistributedRunner):
                             If None, will send to all attached workers
         """
         if client_id:
-            logger.debug("Sending %s message to worker %s" % (msg_type, client_id))
+            logger.debug(f"Sending {msg_type} message to worker {client_id}")
             self.server.send_to_client(Message(msg_type, data, client_id))
         else:
             for client in self.clients.all:
-                logger.debug("Sending %s message to worker %s" % (msg_type, client.id))
+                logger.debug(f"Sending {msg_type} message to worker {client.id}")
                 self.server.send_to_client(Message(msg_type, data, client.id))
 
 
@@ -1150,7 +1153,7 @@ class WorkerRunner(DistributedRunner):
         self.connected = False
         self.connection_event = Event()
         self.worker_state = STATE_INIT
-        self.client_id = socket.gethostname() + "_" + uuid4().hex
+        self.client_id = f"{socket.gethostname()}_{uuid4().hex}"
         self.master_host = master_host
         self.master_port = master_port
         self.worker_cpu_warning_emitted = False
@@ -1294,7 +1297,7 @@ class WorkerRunner(DistributedRunner):
                 }
                 vars(self.environment.parsed_options).update(custom_args_from_master)
 
-                if self.worker_state != STATE_RUNNING and self.worker_state != STATE_SPAWNING:
+                if self.worker_state not in [STATE_RUNNING, STATE_SPAWNING]:
                     self.stats.clear_all()
                     self.exceptions = {}
                     self.cpu_warning_emitted = False
@@ -1328,7 +1331,7 @@ class WorkerRunner(DistributedRunner):
                 logger.warning("Received reconnect message from master. Resetting RPC connection.")
                 self.reset_connection()
             elif msg.type in self.custom_messages:
-                logger.debug("Received %s message from master" % msg.type)
+                logger.debug(f"Received {msg.type} message from master")
                 self.custom_messages[msg.type](environment=self.environment, msg=msg)
             else:
                 logger.warning(f"Unknown message type received: {msg.type}")
@@ -1348,7 +1351,7 @@ class WorkerRunner(DistributedRunner):
         :param msg_type: The type of the message to send
         :param data: Optional data to send
         """
-        logger.debug("Sending %s message to master" % msg_type)
+        logger.debug(f"Sending {msg_type} message to master")
         self.client.send(Message(msg_type, data, self.client_id))
 
     def _send_stats(self) -> None:

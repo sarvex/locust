@@ -81,6 +81,6 @@ def clear_all_functools_lru_cache() -> None:
     # Taken from https://stackoverflow.com/a/50699209.
     gc.collect()
     wrappers = [a for a in gc.get_objects() if isinstance(a, functools._lru_cache_wrapper)]
-    assert len(wrappers) > 0
+    assert wrappers
     for wrapper in wrappers:
         wrapper.cache_clear()

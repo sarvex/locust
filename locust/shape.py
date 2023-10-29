@@ -13,9 +13,9 @@ class LoadTestShapeMeta(ABCMeta):
     ratio using an {task:int} dict, or a [(task0,int), ..., (taskN,int)] list.
     """
 
-    def __new__(mcs, classname, bases, class_dict):
+    def __new__(cls, classname, bases, class_dict):
         class_dict["abstract"] = class_dict.get("abstract", False)
-        return super().__new__(mcs, classname, bases, class_dict)
+        return super().__new__(cls, classname, bases, class_dict)
 
 
 class LoadTestShape(metaclass=LoadTestShapeMeta):

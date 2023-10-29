@@ -2054,10 +2054,10 @@ class TestLargeScale(unittest.TestCase):
     mixed_users = weighted_user_classes[:25] + fixed_user_classes_10k[25:]
 
     def test_distribute_users(self):
+        target_user_count = 1_000_000
+
         for user_classes in [self.weighted_user_classes, self.fixed_user_classes_1M, self.mixed_users]:
             workers = [WorkerNode(str(i)) for i in range(10_000)]
-
-            target_user_count = 1_000_000
 
             users_dispatcher = UsersDispatcher(worker_nodes=workers, user_classes=user_classes)
 
@@ -2075,6 +2075,8 @@ class TestLargeScale(unittest.TestCase):
             self.assertEqual(_user_count(users_on_workers), target_user_count)
 
     def test_ramp_up_from_0_to_100_000_users_with_50_user_classes_and_1000_workers_and_5000_spawn_rate(self):
+        target_user_count = 100_000
+
         for user_classes in [
             self.weighted_user_classes,
             self.fixed_user_classes_1M,
@@ -2082,8 +2084,6 @@ class TestLargeScale(unittest.TestCase):
             self.mixed_users,
         ]:
             workers = [WorkerNode(str(i)) for i in range(1000)]
-
-            target_user_count = 100_000
 
             users_dispatcher = UsersDispatcher(worker_nodes=workers, user_classes=user_classes)
             users_dispatcher.new_dispatch(target_user_count=target_user_count, spawn_rate=5_000)
@@ -2111,9 +2111,7 @@ class TestLargeScale(unittest.TestCase):
                 self.assertLessEqual(
                     max(user_count_on_workers) - min(user_count_on_workers),
                     1,
-                    "One or more workers have too much users compared to the other workers when user count is {}".format(
-                        _user_count(dispatch_users)
-                    ),
+                    f"One or more workers have too much users compared to the other workers when user count is {_user_count(dispatch_users)}",
                 )
 
             for i, dispatch_users in enumerate(all_dispatched_users):
@@ -2124,28 +2122,22 @@ class TestLargeScale(unittest.TestCase):
                     )
                     relative_weight = aggregated_dispatched_users[user_class.__name__] / _user_count(dispatch_users)
                     error_percent = 100 * (relative_weight - target_relative_weight) / target_relative_weight
-                    if i == len(all_dispatched_users) - 1:
-                        # We want the distribution to be as good as possible at the end of the ramp-up
-                        tol = 0.5
-                    else:
-                        tol = 15
+                    tol = 0.5 if i == len(all_dispatched_users) - 1 else 15
                     self.assertLessEqual(
                         error_percent,
                         tol,
-                        "Distribution for user class {} is off by more than {}% when user count is {}".format(
-                            user_class, tol, _user_count(dispatch_users)
-                        ),
+                        f"Distribution for user class {user_class} is off by more than {tol}% when user count is {_user_count(dispatch_users)}",
                     )
 
     def test_ramp_down_from_100_000_to_0_users_with_50_user_classes_and_1000_workers_and_5000_spawn_rate(self):
+        initial_user_count = 100_000
+
         for user_classes in [
             self.weighted_user_classes,
             self.fixed_user_classes_1M,
             self.fixed_user_classes_10k,
             self.mixed_users,
         ]:
-            initial_user_count = 100_000
-
             workers = [WorkerNode(str(i)) for i in range(1000)]
 
             # Ramp-up
@@ -2180,11 +2172,10 @@ class TestLargeScale(unittest.TestCase):
                 self.assertLessEqual(
                     max(user_count_on_workers) - min(user_count_on_workers),
                     1,
-                    "One or more workers have too much users compared to the other workers when user count is {}".format(
-                        _user_count(dispatch_users)
-                    ),
+                    f"One or more workers have too much users compared to the other workers when user count is {_user_count(dispatch_users)}",
                 )
 
+            tol = 15
             for dispatch_users in all_dispatched_users[:-1]:
                 aggregated_dispatched_users = _aggregate_dispatched_users(dispatch_users)
                 for user_class in [u for u in user_classes if not u.fixed_count]:
@@ -2193,13 +2184,10 @@ class TestLargeScale(unittest.TestCase):
                     )
                     relative_weight = aggregated_dispatched_users[user_class.__name__] / _user_count(dispatch_users)
                     error_percent = 100 * (relative_weight - target_relative_weight) / target_relative_weight
-                    tol = 15
                     self.assertLessEqual(
                         error_percent,
                         tol,
-                        "Distribution for user class {} is off by more than {}% when user count is {}".format(
-                            user_class, tol, _user_count(dispatch_users)
-                        ),
+                        f"Distribution for user class {user_class} is off by more than {tol}% when user count is {_user_count(dispatch_users)}",
                     )
 
 
@@ -3378,9 +3366,7 @@ class TestRampUpUsersFromZeroWithFixed(unittest.TestCase):
             self.target_user_count = target_user_count
 
         def __str__(self):
-            return "<RampUpCase fixed_counts={} weights={} target_user_count={}>".format(
-                self.fixed_counts, self.weights, self.target_user_count
-            )
+            return f"<RampUpCase fixed_counts={self.fixed_counts} weights={self.weights} target_user_count={self.target_user_count}>"
 
     def case_handler(self, cases: List[RampUpCase], expected: List[Dict[str, int]], user_classes: List[Type[User]]):
         self.assertEqual(len(cases), len(expected))

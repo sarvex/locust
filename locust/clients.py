@@ -154,21 +154,16 @@ class HttpSession(requests.Session):
             "exception": None,
             "start_time": start_time,
             "url": url,
+            "response_length": int(response.headers.get("content-length") or 0)
+            if kwargs.get("stream", False)
+            else len(response.content or b""),
         }
-
-        # get the length of the content, but if the argument stream is set to True, we take
-        # the size from the content-length header, in order to not trigger fetching of the body
-        if kwargs.get("stream", False):
-            request_meta["response_length"] = int(response.headers.get("content-length") or 0)
-        else:
-            request_meta["response_length"] = len(response.content or b"")
 
         if catch_response:
             return ResponseContextManager(response, request_event=self.request_event, request_meta=request_meta)
-        else:
-            with ResponseContextManager(response, request_event=self.request_event, request_meta=request_meta):
-                pass
-            return response
+        with ResponseContextManager(response, request_event=self.request_event, request_meta=request_meta):
+            pass
+        return response
 
     def _send_request_safe_mode(self, method, url, **kwargs):
         """

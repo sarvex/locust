@@ -34,8 +34,7 @@ def fast():
 
 @app.route("/slow")
 def slow():
-    delay = request.args.get("delay")
-    if delay:
+    if delay := request.args.get("delay"):
         gevent.sleep(float(delay))
     else:
         gevent.sleep(random.choice([0.5, 1, 1.5]))
@@ -85,8 +84,7 @@ def status_204():
 
 @app.route("/redirect", methods=["GET", "POST"])
 def do_redirect():
-    delay = request.args.get("delay")
-    if delay:
+    if delay := request.args.get("delay"):
         gevent.sleep(float(delay))
     url = request.args.get("url", "/ultra_fast")
     return redirect(url)
@@ -196,7 +194,7 @@ class LocustTestCase(unittest.TestCase):
         # set up mocked logging handler
         self._logger_class = MockedLoggingHandler()
         self._logger_class.setLevel(logging.INFO)
-        self._root_log_handlers = [h for h in logging.root.handlers]
+        self._root_log_handlers = list(logging.root.handlers)
         [logging.root.removeHandler(h) for h in logging.root.handlers]
         logging.root.addHandler(self._logger_class)
         logging.root.setLevel(logging.INFO)

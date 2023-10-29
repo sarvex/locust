@@ -402,8 +402,8 @@ class TestFindLocustfiles(LocustTestCase):
 class TestLocustfileIsDirectory(LocustTestCase):
     def setUp(self):
         super().setUp()
-        self.random_prefix = "locust/test/foobar_" + str(randint(1000, 9999))
-        self.mock_filename = self.random_prefix + ".py"
+        self.random_prefix = f"locust/test/foobar_{str(randint(1000, 9999))}"
+        self.mock_filename = f"{self.random_prefix}.py"
 
         self.mock_locustfile = open(self.mock_filename, "w")
         self.mock_locustfile.close()

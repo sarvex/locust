@@ -30,7 +30,7 @@ def _calc_distribution(user_classes, num_users):
     total_weight = sum(u.weight for u in user_classes if not u.fixed_count)
     num_users = num_users or (total_weight if not fixed_count else 1)
     weighted_count = num_users - fixed_count
-    weighted_count = weighted_count if weighted_count > 0 else 0
+    weighted_count = max(weighted_count, 0)
     user_classes_count = {}
 
     for u in user_classes:
@@ -55,8 +55,7 @@ def get_ratio(user_classes: List[Type[User]], user_spawned: Dict[str, int], tota
 
     task_dict: Dict[str, Dict[str, float]] = {}
     for u, r in ratio_percent.items():
-        d = {"ratio": r}
-        d["tasks"] = _get_task_ratio(u.tasks, total, r)
+        d = {"ratio": r, "tasks": _get_task_ratio(u.tasks, total, r)}
         task_dict[u.__name__] = d
 
     return task_dict

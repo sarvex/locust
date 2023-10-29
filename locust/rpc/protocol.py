@@ -15,5 +15,4 @@ class Message:
 
     @classmethod
     def unserialize(cls, data):
-        msg = cls(*msgpack.loads(data, raw=False, strict_map_key=False))
-        return msg
+        return cls(*msgpack.loads(data, raw=False, strict_map_key=False))

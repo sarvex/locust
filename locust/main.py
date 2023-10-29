@@ -92,7 +92,7 @@ def main():
         # Setting Available Shape Classes
         if shape_class:
             shape_class_name = type(shape_class).__name__
-            if shape_class_name in available_shape_classes.keys():
+            if shape_class_name in available_shape_classes:
                 sys.stderr.write(f"Duplicate shape classes: {shape_class_name}\n")
                 sys.exit(1)
 
@@ -100,17 +100,16 @@ def main():
 
         # Setting Available User Classes
         for key, value in _user_classes.items():
-            if key in available_user_classes.keys():
+            if key in available_user_classes:
                 previous_path = inspect.getfile(user_classes[key])
                 new_path = inspect.getfile(value)
                 if previous_path == new_path:
                     # The same User class was defined in two locustfiles but one probably imported the other, so we just ignore it
                     continue
-                else:
-                    sys.stderr.write(
-                        f"Duplicate user class names: {key} is defined in both {previous_path} and {new_path}\n"
-                    )
-                    sys.exit(1)
+                sys.stderr.write(
+                    f"Duplicate user class names: {key} is defined in both {previous_path} and {new_path}\n"
+                )
+                sys.exit(1)
 
             user_classes[key] = value
             available_user_classes[key] = value
@@ -121,9 +120,7 @@ def main():
 
     def is_valid_percentile(parameter):
         try:
-            if 0 < float(parameter) < 1:
-                return True
-            return False
+            return 0 < float(parameter) < 1
         except ValueError:
             return False
 
@@ -172,7 +169,7 @@ def main():
     if options.list_commands:
         print("Available Users:")
         for name in user_classes:
-            print("    " + name)
+            print(f"    {name}")
         sys.exit(0)
 
     if not user_classes:
@@ -293,17 +290,12 @@ See https://github.com/locustio/locust/wiki/Installation#increasing-maximum-numb
         # spawn web greenlet
         protocol = "https" if options.tls_cert and options.tls_key else "http"
         try:
-            if options.web_host == "*":
-                # special check for "*" so that we're consistent with --master-bind-host
-                web_host = ""
-            else:
-                web_host = options.web_host
+            web_host = "" if options.web_host == "*" else options.web_host
             if web_host:
                 logger.info(f"Starting web interface at {protocol}://{web_host}:{options.web_port}")
             else:
                 logger.info(
-                    "Starting web interface at %s://0.0.0.0:%s (accepting connections from all network interfaces)"
-                    % (protocol, options.web_port)
+                    f"Starting web interface at {protocol}://0.0.0.0:{options.web_port} (accepting connections from all network interfaces)"
                 )
             web_ui = environment.create_web_ui(
                 host=web_host,
@@ -347,7 +339,7 @@ See https://github.com/locustio/locust/wiki/Installation#increasing-maximum-numb
             logger.info("--run-time limit reached, stopping test")
             runner.stop()
             if options.autoquit != -1:
-                logger.debug("Autoquit time limit set to %s seconds" % options.autoquit)
+                logger.debug(f"Autoquit time limit set to {options.autoquit} seconds")
                 time.sleep(options.autoquit)
                 logger.info("--autoquit time reached, shutting down")
                 runner.quit()

@@ -33,17 +33,22 @@ def save_locust_env_variables():
     print(f"Generating RST table for Locust environment variables and storing in {env_options_output_file}")
     parser = get_empty_argument_parser()
     setup_parser_arguments(parser)
-    table_data = []
-    for action in parser._actions:
-        if action.env_var and action.help != "==SUPPRESS==":
-            table_data.append(
-                (
-                    ", ".join([f"``{c}``" for c in action.option_strings]),
-                    f"``{action.env_var}``",
-                    ", ".join([f"``{c}``" for c in parser.get_possible_config_keys(action) if not c.startswith("--")]),
-                    action.help,
-                )
-            )
+    table_data = [
+        (
+            ", ".join([f"``{c}``" for c in action.option_strings]),
+            f"``{action.env_var}``",
+            ", ".join(
+                [
+                    f"``{c}``"
+                    for c in parser.get_possible_config_keys(action)
+                    if not c.startswith("--")
+                ]
+            ),
+            action.help,
+        )
+        for action in parser._actions
+        if action.env_var and action.help != "==SUPPRESS=="
+    ]
     colsizes = [max(len(r[i]) for r in table_data) for i in range(len(table_data[0]))]
     formatter = " ".join("{:<%d}" % c for c in colsizes)
     rows = [formatter.format(*row) for row in table_data]

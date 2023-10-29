@@ -19,7 +19,9 @@ def parse_timespan(time_str):
     if not parts:
         raise ValueError("Invalid time span format. Valid formats: 20, 20s, 3m, 2h, 1h20m, 3h30m10s, etc.")
     parts = parts.groupdict()
-    time_params = {name: int(value) for name, value in parts.items() if value}
-    if not time_params:
+    if time_params := {
+        name: int(value) for name, value in parts.items() if value
+    }:
+        return int(timedelta(**time_params).total_seconds())
+    else:
         raise ValueError("Invalid time span format. Valid formats: 20, 20s, 3m, 2h, 1h20m, 3h30m10s, etc.")
-    return int(timedelta(**time_params).total_seconds())

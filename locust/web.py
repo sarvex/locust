@@ -374,7 +374,7 @@ class WebUI:
                 }
 
                 if isinstance(environment.runner, MasterRunner):
-                    report.update({"workers": []})
+                    report["workers"] = []
 
                 return jsonify(report)
 
@@ -396,7 +396,7 @@ class WebUI:
             report = {"stats": truncated_stats, "errors": errors[:500]}
 
             if stats:
-                report["total_rps"] = stats[len(stats) - 1]["current_rps"]
+                report["total_rps"] = stats[-1]["current_rps"]
                 report["fail_ratio"] = environment.runner.stats.total.fail_ratio
                 report[
                     "current_response_time_percentile_1"
@@ -540,11 +540,7 @@ class WebUI:
         options = self.environment.parsed_options
 
         is_distributed = isinstance(self.environment.runner, MasterRunner)
-        if is_distributed:
-            worker_count = self.environment.runner.worker_count
-        else:
-            worker_count = 0
-
+        worker_count = self.environment.runner.worker_count if is_distributed else 0
         stats = self.environment.runner.stats
         extra_options = argument_parser.ui_extra_args_dict()
 
@@ -568,10 +564,9 @@ class WebUI:
             "num_users": options and options.num_users,
             "spawn_rate": options and options.spawn_rate,
             "worker_count": worker_count,
-            "hide_common_options": (
-                self.environment.shape_class
-                and not (self.userclass_picker_is_active or self.environment.shape_class.use_common_options)
-            ),
+            "hide_common_options": self.environment.shape_class
+            and not self.userclass_picker_is_active
+            and not self.environment.shape_class.use_common_options,
             "stats_history_enabled": options and options.stats_history_enabled,
             "tasks": dumps({}),
             "extra_options": extra_options,

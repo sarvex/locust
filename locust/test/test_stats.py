@@ -422,7 +422,7 @@ class TestCsvStats(LocustTestCase):
 
         with open(self.STATS_HISTORY_FILENAME) as f:
             reader = csv.DictReader(f)
-            rows = [r for r in reader]
+            rows = list(reader)
 
         self.assertEqual(2, len(rows))
         self.assertEqual("Aggregated", rows[0]["Name"])
@@ -434,13 +434,13 @@ class TestCsvStats(LocustTestCase):
             self.environment, PERCENTILES_TO_REPORT, self.STATS_BASE_NAME, full_history=True
         )
 
-        for i in range(10):
+        for _ in range(10):
             self.runner.stats.log_request("GET", "/", 100, content_length=666)
 
         greenlet = gevent.spawn(stats_writer)
         gevent.sleep(10)
 
-        for i in range(10):
+        for _ in range(10):
             self.runner.stats.log_request("GET", "/", 10, content_length=666)
 
         gevent.sleep(5)
@@ -456,7 +456,7 @@ class TestCsvStats(LocustTestCase):
 
         with open(self.STATS_HISTORY_FILENAME) as f:
             reader = csv.DictReader(f)
-            rows = [r for r in reader]
+            rows = list(reader)
 
         self.assertGreaterEqual(len(rows), 130)
 
@@ -542,10 +542,10 @@ class TestCsvStats(LocustTestCase):
 
         with open(self.STATS_HISTORY_FILENAME) as f:
             reader = csv.DictReader(f)
-            rows = [r for r in reader]
+            rows = list(reader)
 
         self.assertEqual(2 * user_count, len(rows))
-        for i in range(int(user_count / spawn_rate)):
+        for i in range(user_count // spawn_rate):
             for _ in range(spawn_rate):
                 row = rows.pop(0)
                 self.assertEqual("%i" % ((i + 1) * spawn_rate), row["User Count"])
@@ -580,7 +580,7 @@ class TestCsvStats(LocustTestCase):
             _write_csv_files(environment, self.STATS_BASE_NAME, full_history=True)
             with open(self.STATS_FILENAME) as f:
                 reader = csv.DictReader(f)
-                rows = [r for r in reader]
+                rows = list(reader)
                 csv_request_name = rows[0].get("Name")
                 self.assertEqual(request_name_str, csv_request_name)
 
@@ -618,7 +618,7 @@ class TestStatsEntryResponseTimesCache(unittest.TestCase):
                 response_times={11: 1},
                 num_requests=1,
             ),
-            s.response_times_cache[int(s.last_request_timestamp) - 1],
+            s.response_times_cache[s.last_request_timestamp - 1],
         )
 
     def test_response_times_not_cached_if_not_enabled(self):
@@ -708,14 +708,13 @@ class TestStatsEntryResponseTimesCache(unittest.TestCase):
 class TestStatsEntry(unittest.TestCase):
     def parse_string_output(self, text):
         tokenlist = re.split(r"[\s\(\)%|]+", text.strip())
-        tokens = {
+        return {
             "method": tokenlist[0],
             "name": tokenlist[1],
             "request_count": int(tokenlist[2]),
             "failure_count": int(tokenlist[3]),
             "failure_percentage": float(tokenlist[4]),
         }
-        return tokens
 
     def setUp(self, *args, **kwargs):
         super().setUp(*args, **kwargs)
