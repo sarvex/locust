@@ -27,24 +27,21 @@ def on_locust_init(environment, **_kwargs):
 def on_test_start(environment, **_kwargs):
     # When the test is started, evenly divides list between
     # worker nodes to ensure unique data across threads
-    if not isinstance(environment.runner, WorkerRunner):
-        users = []
-        for i in range(environment.runner.target_user_count):
-            users.append({"name": f"User{i}"})
+    if isinstance(environment.runner, WorkerRunner):
+        return
+    users = [
+        {"name": f"User{i}"}
+        for i in range(environment.runner.target_user_count)
+    ]
+    worker_count = environment.runner.worker_count
+    chunk_size = int(len(users) / worker_count)
 
-        worker_count = environment.runner.worker_count
-        chunk_size = int(len(users) / worker_count)
+    for i, worker in enumerate(environment.runner.clients):
+        start_index = i * chunk_size
 
-        for i, worker in enumerate(environment.runner.clients):
-            start_index = i * chunk_size
-
-            if i + 1 < worker_count:
-                end_index = start_index + chunk_size
-            else:
-                end_index = len(users)
-
-            data = users[start_index:end_index]
-            environment.runner.send_message("test_users", data, worker)
+        end_index = start_index + chunk_size if i + 1 < worker_count else len(users)
+        data = users[start_index:end_index]
+        environment.runner.send_message("test_users", data, worker)
 
 
 class WebsiteUser(HttpUser):

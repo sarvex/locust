@@ -65,7 +65,7 @@ def find_locustfile(locustfile):
     names = [locustfile]
     # Create .py version if necessary
     if not names[0].endswith(".py"):
-        names.append(names[0] + ".py")
+        names.append(f"{names[0]}.py")
     # Does the name contain path elements?
     if os.path.dirname(names[0]):
         # If so, expand home-directory markers and test for existence
@@ -204,38 +204,37 @@ def parse_locustfile_option(args=None) -> List[str]:
                 f"Could not find any locustfiles in directory '{locustfile_as_list[0]}'. See --help for available options.\n"
             )
             sys.exit(1)
+    elif len(locustfile_as_list) > 1:
+        # Is multiple files
+        locustfiles = find_locustfiles(locustfile_as_list, is_directory=False)
+        locustfile = None
     else:
-        if len(locustfile_as_list) > 1:
-            # Is multiple files
-            locustfiles = find_locustfiles(locustfile_as_list, is_directory=False)
-            locustfile = None
-        else:
-            # Is a single file
-            locustfile = find_locustfile(options.locustfile)
-            locustfiles = [locustfile]
+        # Is a single file
+        locustfile = find_locustfile(options.locustfile)
+        locustfiles = [locustfile]
 
-            if not locustfile:
-                if options.help or options.version:
-                    # if --help or --version is specified we'll call parse_options which will print the help/version message
-                    parse_options(args=args)
-                note_about_file_endings = ""
-                user_friendly_locustfile_name = options.locustfile
-                if options.locustfile == "locustfile":
-                    user_friendly_locustfile_name = "locustfile.py"
-                elif not options.locustfile.endswith(".py"):
-                    note_about_file_endings = (
-                        "Ensure your locustfile ends with '.py' or is a directory with locustfiles. "
-                    )
-                sys.stderr.write(
-                    f"Could not find '{user_friendly_locustfile_name}'. {note_about_file_endings}See --help for available options.\n"
+        if not locustfile:
+            if options.help or options.version:
+                # if --help or --version is specified we'll call parse_options which will print the help/version message
+                parse_options(args=args)
+            note_about_file_endings = ""
+            user_friendly_locustfile_name = options.locustfile
+            if options.locustfile == "locustfile":
+                user_friendly_locustfile_name = "locustfile.py"
+            elif not options.locustfile.endswith(".py"):
+                note_about_file_endings = (
+                    "Ensure your locustfile ends with '.py' or is a directory with locustfiles. "
                 )
-                sys.exit(1)
+            sys.stderr.write(
+                f"Could not find '{user_friendly_locustfile_name}'. {note_about_file_endings}See --help for available options.\n"
+            )
+            sys.exit(1)
 
-            if locustfile == "locust.py":
-                sys.stderr.write(
-                    "The locustfile must not be named `locust.py`. Please rename the file and try again.\n"
-                )
-                sys.exit(1)
+        if locustfile == "locust.py":
+            sys.stderr.write(
+                "The locustfile must not be named `locust.py`. Please rename the file and try again.\n"
+            )
+            sys.exit(1)
 
     return locustfiles
 
@@ -635,7 +634,7 @@ def ui_extra_args_dict(args=None) -> Dict[str, Dict[str, Any]]:
     parser = get_parser()
     all_args = vars(parser.parse_args(args))
 
-    extra_args = {
+    return {
         k: UIExtraArgOptions(
             default_value=v,
             is_secret=k in parser.secret_args_included_in_web_ui,
@@ -645,8 +644,6 @@ def ui_extra_args_dict(args=None) -> Dict[str, Dict[str, Any]]:
         for k, v in all_args.items()
         if k not in locust_args and k in parser.args_included_in_web_ui
     }
-
-    return extra_args
 
 
 def locustfile_is_directory(locustfiles: List[str]) -> bool:
@@ -674,7 +671,4 @@ def locustfile_is_directory(locustfiles: List[str]) -> bool:
 
             return False
 
-    if os.path.isdir(locustfile):
-        return True
-
-    return False
+    return bool(os.path.isdir(locustfile))

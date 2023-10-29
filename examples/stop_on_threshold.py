@@ -19,7 +19,11 @@ class MyUser(HttpUser):
 
 
 def checker(environment):
-    while not environment.runner.state in [STATE_STOPPING, STATE_STOPPED, STATE_CLEANUP]:
+    while environment.runner.state not in [
+        STATE_STOPPING,
+        STATE_STOPPED,
+        STATE_CLEANUP,
+    ]:
         time.sleep(1)
         if environment.runner.stats.total.fail_ratio > 0.2:
             print(f"fail ratio was {environment.runner.stats.total.fail_ratio}, quitting")

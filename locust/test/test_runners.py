@@ -52,6 +52,9 @@ UNRECOGNIZED_MESSAGE = "unrecognized message"
 
 
 def mocked_rpc(raise_on_close=True):
+
+
+
     class MockedRpcServerClient:
         queue = Queue()
         outbox = []
@@ -94,8 +97,7 @@ def mocked_rpc(raise_on_close=True):
         def close(self, linger=None):
             if self.raise_error_on_close:
                 raise RPCError()
-            else:
-                pass
+
 
     return MockedRpcServerClient
 
@@ -1144,7 +1146,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             master = master_env.create_master_runner("*", 0)
 
             workers = []
-            for i in range(3):
+            for _ in range(3):
                 worker_env = Environment(user_classes=[TestUser])
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -1339,10 +1341,10 @@ class TestMasterWorkerRunners(LocustTestCase):
                     return None
 
         locust_worker_additional_wait_before_ready_after_stop = 5
-        with mock.patch("locust.runners.WORKER_REPORT_INTERVAL", new=0.3), patch_env(
-            "LOCUST_WORKER_ADDITIONAL_WAIT_BEFORE_READY_AFTER_STOP",
-            str(locust_worker_additional_wait_before_ready_after_stop),
-        ):
+        with (mock.patch("locust.runners.WORKER_REPORT_INTERVAL", new=0.3), patch_env(
+                "LOCUST_WORKER_ADDITIONAL_WAIT_BEFORE_READY_AFTER_STOP",
+                str(locust_worker_additional_wait_before_ready_after_stop),
+            )):
             stop_timeout = 5
             master_env = Environment(
                 user_classes=[TestUser1, TestUser2, TestUser3], shape_class=TestShape(), stop_timeout=stop_timeout
@@ -1351,7 +1353,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             master = master_env.create_master_runner("*", 0)
 
             workers = []
-            for i in range(5):
+            for _ in range(5):
                 worker_env = Environment(user_classes=[TestUser1, TestUser2, TestUser3])
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -1596,10 +1598,10 @@ class TestMasterWorkerRunners(LocustTestCase):
             user_class.weight = random.uniform(1, 20)
 
         locust_worker_additional_wait_before_ready_after_stop = 5
-        with mock.patch("locust.runners.WORKER_REPORT_INTERVAL", new=0.3), patch_env(
-            "LOCUST_WORKER_ADDITIONAL_WAIT_BEFORE_READY_AFTER_STOP",
-            str(locust_worker_additional_wait_before_ready_after_stop),
-        ):
+        with (mock.patch("locust.runners.WORKER_REPORT_INTERVAL", new=0.3), patch_env(
+                "LOCUST_WORKER_ADDITIONAL_WAIT_BEFORE_READY_AFTER_STOP",
+                str(locust_worker_additional_wait_before_ready_after_stop),
+            )):
             stop_timeout = 5
             master_env = Environment(
                 user_classes=chosen_user_classes, shape_class=TestShape(), stop_timeout=stop_timeout
@@ -1608,7 +1610,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             master = master_env.create_master_runner("*", 0)
 
             workers = []
-            for i in range(random.randint(1, 30)):
+            for _ in range(random.randint(1, 30)):
                 worker_env = Environment(user_classes=chosen_user_classes)
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -1648,13 +1650,13 @@ class TestMasterWorkerRunners(LocustTestCase):
             def my_task(self):
                 pass
 
+
+
         class TestShape(LoadTestShape):
             def tick(self):
                 run_time = self.get_run_time()
-                if run_time < 10:
-                    return 4, 4
-                else:
-                    return None
+                return (4, 4) if run_time < 10 else None
+
 
         with mock.patch("locust.runners.WORKER_REPORT_INTERVAL", new=0.3):
             master_env = Environment(user_classes=[TestUser], shape_class=TestShape())
@@ -1662,7 +1664,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             master = master_env.create_master_runner("*", 0)
 
             workers = []
-            for i in range(2):
+            for _ in range(2):
                 worker_env = Environment(user_classes=[TestUser])
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -1704,7 +1706,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             master = master_env.create_master_runner("*", 0)
 
             workers = []
-            for i in range(3):
+            for _ in range(3):
                 worker_env = Environment(user_classes=[TestUser])
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -1742,17 +1744,17 @@ class TestMasterWorkerRunners(LocustTestCase):
                     return None
 
         locust_worker_additional_wait_before_ready_after_stop = 2
-        with mock.patch("locust.runners.WORKER_REPORT_INTERVAL", new=0.3), patch_env(
-            "LOCUST_WORKER_ADDITIONAL_WAIT_BEFORE_READY_AFTER_STOP",
-            str(locust_worker_additional_wait_before_ready_after_stop),
-        ):
+        with (mock.patch("locust.runners.WORKER_REPORT_INTERVAL", new=0.3), patch_env(
+                "LOCUST_WORKER_ADDITIONAL_WAIT_BEFORE_READY_AFTER_STOP",
+                str(locust_worker_additional_wait_before_ready_after_stop),
+            )):
             master_env = Environment(user_classes=[TestUser1], shape_class=TestShape())
 
             master_env.shape_class.reset_time()
             master = master_env.create_master_runner("*", 0)
 
             workers = []
-            for i in range(5):
+            for _ in range(5):
                 worker_env = Environment(user_classes=[TestUser1])
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -1802,6 +1804,7 @@ class TestMasterWorkerRunners(LocustTestCase):
                     self.assertTrue(15 - tolerance <= t2 <= 15 + tolerance)
 
     def test_swarm_endpoint_is_non_blocking(self):
+
         class TestUser1(User):
             @task
             def my_task(self):
@@ -1818,7 +1821,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             web_ui = master_env.create_web_ui("127.0.0.1", 0)
 
             workers = []
-            for i in range(2):
+            for _ in range(2):
                 worker_env = Environment(user_classes=[TestUser1, TestUser2])
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -1850,6 +1853,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             web_ui.stop()
 
     def test_can_call_stop_endpoint_if_currently_swarming(self):
+
         class TestUser1(User):
             @task
             def my_task(self):
@@ -1867,7 +1871,7 @@ class TestMasterWorkerRunners(LocustTestCase):
             web_ui = master_env.create_web_ui("127.0.0.1", 0)
 
             workers = []
-            for i in range(2):
+            for _ in range(2):
                 worker_env = Environment(user_classes=[TestUser1, TestUser2])
                 worker = worker_env.create_worker_runner("127.0.0.1", master.server.port)
                 workers.append(worker)
@@ -2050,7 +2054,11 @@ class TestMasterRunner(LocustRunnerTestCase):
             self.assertEqual(1, len(self.mocked_log.warning))
             self.assertEqual(2, len(master.clients))
             server.mocked_send(
-                Message("client_ready", __version__ + "1", "difference_in_patch_version_should_not_warn")
+                Message(
+                    "client_ready",
+                    f"{__version__}1",
+                    "difference_in_patch_version_should_not_warn",
+                )
             )
             self.assertEqual(3, len(master.clients))
             self.assertEqual(1, len(self.mocked_log.warning))
@@ -2697,10 +2705,7 @@ class TestMasterRunner(LocustRunnerTestCase):
             master.start(USERS_COUNT, USERS_COUNT)
             self.assertEqual(USERS_COUNT * 2, len(server.outbox))
 
-            indexes = []
-            for _, msg in server.outbox:
-                if msg.type == "ack":
-                    indexes.append(msg.data["index"])
+            indexes = [msg.data["index"] for _, msg in server.outbox if msg.type == "ack"]
             self.assertEqual(USERS_COUNT, len(indexes), "Total number of locusts/workers is not 5")
 
             indexes.sort()
@@ -3372,7 +3377,7 @@ class TestWorkerRunner(LocustTestCase):
             worker = self.get_runner(environment=Environment(), user_classes=[MyUser], client=client)
 
             t0 = time.perf_counter()
-            while len([m for m in client.outbox if m.type == "heartbeat"]) == 0:
+            while not [m for m in client.outbox if m.type == "heartbeat"]:
                 self.assertLessEqual(time.perf_counter() - t0, 3)
                 sleep(0.1)
 

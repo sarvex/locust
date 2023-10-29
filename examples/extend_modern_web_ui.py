@@ -48,101 +48,101 @@ def locust_init(environment, **kwargs):
     while on the worker nodes this will be the sum of the content-lengths since the
     last stats report was sent to the master
     """
-    if environment.web_ui:
-
-        def get_content_length_stats():
-            """
+    if not environment.web_ui:
+        return
+    def get_content_length_stats():
+        """
             This is used by the Content Length tab in the
             extended web UI to show the stats.
             """
-            if stats:
-                stats_tmp = []
+        if stats:
+            stats_tmp = []
 
-                for name, inner_stats in stats.items():
-                    content_length = inner_stats["content-length"]
+            for name, inner_stats in stats.items():
+                content_length = inner_stats["content-length"]
 
-                    stats_tmp.append(
-                        {"name": name, "safe_name": escape(name, quote=False), "content_length": content_length}
-                    )
-
-                # Truncate the total number of stats and errors displayed since a large number of rows will cause the app
-                # to render extremely slowly.
-                return stats_tmp[:500]
-            return stats
-
-        @environment.web_ui.app.after_request
-        def extend_stats_response(response):
-            if request.path != "/stats/requests":
-                return response
-
-            response.set_data(
-                json.dumps(
-                    {**response.json, "extended_stats": [{"key": "content-length", "data": get_content_length_stats()}]}
+                stats_tmp.append(
+                    {"name": name, "safe_name": escape(name, quote=False), "content_length": content_length}
                 )
-            )
 
+            # Truncate the total number of stats and errors displayed since a large number of rows will cause the app
+            # to render extremely slowly.
+            return stats_tmp[:500]
+        return stats
+
+    @environment.web_ui.app.after_request
+    def extend_stats_response(response):
+        if request.path != "/stats/requests":
             return response
 
-        @extend.route("/extend")
-        def extend_web_ui():
-            """
+        response.set_data(
+            json.dumps(
+                {**response.json, "extended_stats": [{"key": "content-length", "data": get_content_length_stats()}]}
+            )
+        )
+
+        return response
+
+    @extend.route("/extend")
+    def extend_web_ui():
+        """
             Add route to access the extended web UI with our new tab.
             """
-            # ensure the template_args are up to date before using them
-            environment.web_ui.update_template_args()
-            # set the static paths to use the modern ui
-            environment.web_ui.set_static_modern_ui()
+        # ensure the template_args are up to date before using them
+        environment.web_ui.update_template_args()
+        # set the static paths to use the modern ui
+        environment.web_ui.set_static_modern_ui()
 
-            return render_template(
-                "index.html",
-                template_args={
-                    **environment.web_ui.template_args,
-                    "extended_tabs": [{"title": "Content Length", "key": "content-length"}],
-                    "extended_tables": [
-                        {
-                            "key": "content-length",
-                            "structure": [
-                                {"key": "name", "title": "Name"},
-                                {"key": "content_length", "title": "Total content length"},
-                            ],
-                        }
-                    ],
-                    "extended_csv_files": [
-                        {"href": "/content-length/csv", "title": "Download content length statistics CSV"}
-                    ],
-                },
-            )
+        return render_template(
+            "index.html",
+            template_args={
+                **environment.web_ui.template_args,
+                "extended_tabs": [{"title": "Content Length", "key": "content-length"}],
+                "extended_tables": [
+                    {
+                        "key": "content-length",
+                        "structure": [
+                            {"key": "name", "title": "Name"},
+                            {"key": "content_length", "title": "Total content length"},
+                        ],
+                    }
+                ],
+                "extended_csv_files": [
+                    {"href": "/content-length/csv", "title": "Download content length statistics CSV"}
+                ],
+            },
+        )
 
-        @extend.route("/content-length/csv")
-        def request_content_length_csv():
-            """
+    @extend.route("/content-length/csv")
+    def request_content_length_csv():
+        """
             Add route to enable downloading of content-length stats as CSV
             """
-            response = make_response(content_length_csv())
-            file_name = f"content_length{time()}.csv"
-            disposition = f"attachment;filename={file_name}"
-            response.headers["Content-type"] = "text/csv"
-            response.headers["Content-disposition"] = disposition
-            return response
+        response = make_response(content_length_csv())
+        file_name = f"content_length{time()}.csv"
+        disposition = f"attachment;filename={file_name}"
+        response.headers["Content-type"] = "text/csv"
+        response.headers["Content-disposition"] = disposition
+        return response
 
-        def content_length_csv():
-            """Returns the content-length stats as CSV."""
-            rows = [
-                ",".join(
-                    [
-                        '"Name"',
-                        '"Total content-length"',
-                    ]
-                )
-            ]
+    def content_length_csv():
+        """Returns the content-length stats as CSV."""
+        rows = [
+            ",".join(
+                [
+                    '"Name"',
+                    '"Total content-length"',
+                ]
+            )
+        ]
 
-            if stats:
-                for url, inner_stats in stats.items():
-                    rows.append(f"\"{url}\",{inner_stats['content-length']:.2f}")
-            return "\n".join(rows)
+        if stats:
+            for url, inner_stats in stats.items():
+                rows.append(f"\"{url}\",{inner_stats['content-length']:.2f}")
+        return "\n".join(rows)
 
-        # register our new routes and extended UI with the Locust web UI
-        environment.web_ui.app.register_blueprint(extend)
+    # register our new routes and extended UI with the Locust web UI
+    environment.web_ui.app.register_blueprint(extend)
 
 
 @events.request.add_listener

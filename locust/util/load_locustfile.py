@@ -64,9 +64,11 @@ def load_locustfile(path) -> Tuple[Optional[str], Dict[str, User], Optional[Load
     # Return our two-tuple
     user_classes = {name: value for name, value in vars(imported).items() if is_user_class(value)}
 
-    # Find shape class, if any, return it
-    shape_classes = [value for name, value in vars(imported).items() if is_shape_class(value)]
-    if shape_classes:
+    if shape_classes := [
+        value
+        for name, value in vars(imported).items()
+        if is_shape_class(value)
+    ]:
         shape_class = shape_classes[0]()
     else:
         shape_class = None

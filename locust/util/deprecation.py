@@ -19,12 +19,16 @@ def check_for_deprecated_task_set_attribute(class_dict):
 
 
 def deprecated_locust_meta_class(deprecation_message):
+
+
+
     class MetaClass(type):
-        def __new__(mcs, classname, bases, class_dict):
+        def __new__(cls, classname, bases, class_dict):
             if classname in ["DeprecatedLocustClass", "DeprecatedHttpLocustClass", "DeprecatedFastHttpLocustClass"]:
-                return super().__new__(mcs, classname, bases, class_dict)
+                return super().__new__(cls, classname, bases, class_dict)
             else:
                 raise ImportError(deprecation_message)
+
 
     return MetaClass
 

@@ -181,8 +181,7 @@ def diff_response_time_dicts(latest: Dict[int, int], old: Dict[int, int]) -> Dic
     """
     new = {}
     for t in latest:
-        diff = latest[t] - old.get(t, 0)
-        if diff:
+        if diff := latest[t] - old.get(t, 0):
             new[t] = diff
     return new
 
@@ -279,7 +278,9 @@ class RequestStats:
 
     def serialize_stats(self) -> List["StatsEntryDict"]:
         return [
-            e.get_stripped_report() for e in self.entries.values() if not (e.num_requests == 0 and e.num_failures == 0)
+            e.get_stripped_report()
+            for e in self.entries.values()
+            if e.num_requests != 0 or e.num_failures != 0
         ]
 
     def serialize_errors(self) -> Dict[str, "StatsErrorDict"]:
@@ -420,10 +421,7 @@ class StatsEntry:
         try:
             return float(self.num_failures) / self.num_requests
         except ZeroDivisionError:
-            if self.num_failures > 0:
-                return 1.0
-            else:
-                return 0.0
+            return 1.0 if self.num_failures > 0 else 0.0
 
     @property
     def avg_response_time(self) -> float:
@@ -583,7 +581,7 @@ class StatsEntry:
             + str((STATS_NAME_WIDTH - STATS_TYPE_WIDTH) + 4)
             + "s %7d %12s |%7d %7d %7d%7d | %7.2f %11.2f"
         ) % (
-            (self.method and self.method + " " or ""),
+            self.method and f"{self.method} " or "",
             self.name,
             self.num_requests,
             "%d(%.2f%%)" % (self.num_failures, self.fail_ratio * 100),
@@ -625,8 +623,9 @@ class StatsEntry:
         # when trying to fetch the cached response_times. We construct this list in such a way
         # that it's ordered by preference by starting to add t-10, then t-11, t-9, t-12, t-8,
         # and so on
-        acceptable_timestamps: List[int] = []
-        acceptable_timestamps.append(t - CURRENT_RESPONSE_TIME_PERCENTILE_WINDOW)
+        acceptable_timestamps: List[int] = [
+            t - CURRENT_RESPONSE_TIME_PERCENTILE_WINDOW
+        ]
         for i in range(1, 9):
             acceptable_timestamps.append(t - CURRENT_RESPONSE_TIME_PERCENTILE_WINDOW - i)
             acceptable_timestamps.append(t - CURRENT_RESPONSE_TIME_PERCENTILE_WINDOW + i)
@@ -750,7 +749,7 @@ class StatsError:
         def _getattr(obj: "StatsError", key: str, default: Optional[Any]) -> Optional[Any]:
             value = getattr(obj, key, default)
 
-            if key in ["error"]:
+            if key in {"error"}:
                 value = StatsError.parse_error(value)
 
             return value
@@ -830,11 +829,23 @@ def get_stats_summary(stats: RequestStats, current=True) -> List[str]:
     stats summary will be returned as list of string
     """
     name_column_width = (STATS_NAME_WIDTH - STATS_TYPE_WIDTH) + 4  # saved characters by compacting other columns
-    summary = []
-    summary.append(
-        ("%-" + str(STATS_TYPE_WIDTH) + "s %-" + str(name_column_width) + "s %7s %12s |%7s %7s %7s%7s | %7s %11s")
-        % ("Type", "Name", "# reqs", "# fails", "Avg", "Min", "Max", "Med", "req/s", "failures/s")
-    )
+    summary = [
+        (
+            f"%-{str(STATS_TYPE_WIDTH)}s %-{str(name_column_width)}s %7s %12s |%7s %7s %7s%7s | %7s %11s"
+            % (
+                "Type",
+                "Name",
+                "# reqs",
+                "# fails",
+                "Avg",
+                "Min",
+                "Max",
+                "Med",
+                "req/s",
+                "failures/s",
+            )
+        )
+    ]
     separator = f'{"-" * STATS_TYPE_WIDTH}|{"-" * (name_column_width)}|{"-" * 7}|{"-" * 13}|{"-" * 7}|{"-" * 7}|{"-" * 7}|{"-" * 7}|{"-" * 8}|{"-" * 11}'
     summary.append(separator)
     for key in sorted(stats.entries.keys()):
@@ -855,15 +866,12 @@ def get_percentile_stats_summary(stats: RequestStats) -> List[str]:
     """
     Percentile stats summary will be returned as list of string
     """
-    summary = ["Response time percentiles (approximated)"]
     headers = ("Type", "Name") + tuple(get_readable_percentiles(PERCENTILES_TO_REPORT)) + ("# reqs",)
-    summary.append(
-        (
-            f"%-{str(STATS_TYPE_WIDTH)}s %-{str(STATS_NAME_WIDTH)}s %8s "
-            f"{' '.join(['%6s'] * len(PERCENTILES_TO_REPORT))}"
-        )
-        % headers
-    )
+    summary = [
+        "Response time percentiles (approximated)",
+        f"%-{str(STATS_TYPE_WIDTH)}s %-{str(STATS_NAME_WIDTH)}s %8s {' '.join(['%6s'] * len(PERCENTILES_TO_REPORT))}"
+        % headers,
+    ]
     separator = (
         f'{"-" * STATS_TYPE_WIDTH}|{"-" * STATS_NAME_WIDTH}|{"-" * 8}|{("-" * 6 + "|") * len(PERCENTILES_TO_REPORT)}'
     )[:-1]
@@ -886,14 +894,17 @@ def print_error_report(stats: RequestStats) -> None:
 
 
 def get_error_report_summary(stats) -> List[str]:
-    summary = ["Error report"]
-    summary.append("%-18s %-100s" % ("# occurrences", "Error"))
     separator = f'{"-" * 18}|{"-" * ((80 + STATS_NAME_WIDTH) - 19)}'
-    summary.append(separator)
-    for error in stats.errors.values():
-        summary.append("%-18i %-100s" % (error.occurrences, error.to_name()))
-    summary.append(separator)
-    summary.append("")
+    summary = [
+        "Error report",
+        "%-18s %-100s" % ("# occurrences", "Error"),
+        separator,
+    ]
+    summary.extend(
+        "%-18i %-100s" % (error.occurrences, error.to_name())
+        for error in stats.errors.values()
+    )
+    summary.extend((separator, ""))
     return summary
 
 
@@ -1045,17 +1056,19 @@ class StatsCSVFileWriter(StatsCSV):
         self.base_filepath = base_filepath
         self.full_history = full_history
 
-        self.requests_csv_filehandle = open(self.base_filepath + "_stats.csv", "w")
+        self.requests_csv_filehandle = open(f"{self.base_filepath}_stats.csv", "w")
         self.requests_csv_writer = csv.writer(self.requests_csv_filehandle)
 
         self.stats_history_csv_filehandle = open(self.stats_history_file_name(), "w")
         self.stats_history_csv_writer = csv.writer(self.stats_history_csv_filehandle)
 
-        self.failures_csv_filehandle = open(self.base_filepath + "_failures.csv", "w")
+        self.failures_csv_filehandle = open(f"{self.base_filepath}_failures.csv", "w")
         self.failures_csv_writer = csv.writer(self.failures_csv_filehandle)
         self.failures_csv_data_start: int = 0
 
-        self.exceptions_csv_filehandle = open(self.base_filepath + "_exceptions.csv", "w")
+        self.exceptions_csv_filehandle = open(
+            f"{self.base_filepath}_exceptions.csv", "w"
+        )
         self.exceptions_csv_writer = csv.writer(self.exceptions_csv_filehandle)
         self.exceptions_csv_data_start: int = 0
 
@@ -1133,10 +1146,7 @@ class StatsCSVFileWriter(StatsCSV):
 
         stats = self.environment.stats
         timestamp = int(now)
-        stats_entries: List[StatsEntry] = []
-        if self.full_history:
-            stats_entries = sort_stats(stats.entries)
-
+        stats_entries = sort_stats(stats.entries) if self.full_history else []
         for stats_entry in chain(stats_entries, [stats.total]):
             csv_writer.writerow(
                 chain(
@@ -1180,4 +1190,4 @@ class StatsCSVFileWriter(StatsCSV):
         self.exceptions_csv_filehandle.close()
 
     def stats_history_file_name(self) -> str:
-        return self.base_filepath + "_stats_history.csv"
+        return f"{self.base_filepath}_stats_history.csv"

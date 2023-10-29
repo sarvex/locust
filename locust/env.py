@@ -229,13 +229,15 @@ class Environment:
         if len(self.user_classes) == 0:
             # Preserve previous behaviour that allowed no user classes to be specified.
             return
-        filtered_user_classes = [
-            user_class for user_class in self.user_classes if user_class.weight > 0 or user_class.fixed_count > 0
-        ]
-        if len(filtered_user_classes) == 0:
+        if filtered_user_classes := [
+            user_class
+            for user_class in self.user_classes
+            if user_class.weight > 0 or user_class.fixed_count > 0
+        ]:
+            self.user_classes[:] = filtered_user_classes
+        else:
             # TODO: Better exception than `ValueError`?
             raise ValueError("There are no users with weight > 0.")
-        self.user_classes[:] = filtered_user_classes
 
     def assign_equal_weights(self) -> None:
         """
@@ -261,16 +263,13 @@ class Environment:
         # Validate there's no class with the same name but in different modules
         if len({user_class.__name__ for user_class in self.user_classes}) != len(self.user_classes):
             raise ValueError(
-                "The following user classes have the same class name: {}".format(
-                    ", ".join(map(methodcaller("fullname"), self.user_classes))
-                )
+                f'The following user classes have the same class name: {", ".join(map(methodcaller("fullname"), self.user_classes))}'
             )
 
     def _validate_shape_class_instance(self):
         if self.shape_class is not None and not isinstance(self.shape_class, LoadTestShape):
             raise ValueError(
-                "shape_class should be instance of LoadTestShape or subclass LoadTestShape, but got: %s"
-                % self.shape_class
+                f"shape_class should be instance of LoadTestShape or subclass LoadTestShape, but got: {self.shape_class}"
             )
 
     @property

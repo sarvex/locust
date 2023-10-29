@@ -132,7 +132,7 @@ def tag(*tags: str) -> Callable[[TaskT], TaskT]:
             decorated.locust_tag_set |= set(tags)
         return decorated
 
-    if len(tags) == 0 or callable(tags[0]):
+    if not tags or callable(tags[0]):
         raise ValueError("No tag name was supplied")
 
     return decorator_func
@@ -163,7 +163,7 @@ def get_tasks_from_base_classes(bases, class_dict):
 
     for item in class_dict.values():
         if "locust_task_weight" in dir(item):
-            for i in range(item.locust_task_weight):
+            for _ in range(item.locust_task_weight):
                 new_tasks.append(item)
 
     return new_tasks
@@ -214,9 +214,9 @@ class TaskSetMeta(type):
     ratio using an {task:int} dict, or a [(task0,int), ..., (taskN,int)] list.
     """
 
-    def __new__(mcs, classname, bases, class_dict):
+    def __new__(cls, classname, bases, class_dict):
         class_dict["tasks"] = get_tasks_from_base_classes(bases, class_dict)
-        return type.__new__(mcs, classname, bases, class_dict)
+        return type.__new__(cls, classname, bases, class_dict)
 
 
 class TaskSet(metaclass=TaskSetMeta):
@@ -284,11 +284,7 @@ class TaskSet(metaclass=TaskSetMeta):
         self._task_queue: List[Callable] = []
         self._time_start = time()
 
-        if isinstance(parent, TaskSet):
-            self._user = parent.user
-        else:
-            self._user = parent
-
+        self._user = parent.user if isinstance(parent, TaskSet) else parent
         self._parent = parent
 
         # if this class doesn't have a min_wait, max_wait or wait_function defined, copy it from Locust
@@ -424,11 +420,7 @@ class TaskSet(metaclass=TaskSetMeta):
             return random.randint(self.min_wait, self.max_wait) / 1000.0
         else:
             raise MissingWaitTimeError(
-                "You must define a wait_time method on either the %s or %s class"
-                % (
-                    type(self.user).__name__,
-                    type(self).__name__,
-                )
+                f"You must define a wait_time method on either the {type(self.user).__name__} or {type(self).__name__} class"
             )
 
     def wait(self):

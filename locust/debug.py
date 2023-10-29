@@ -12,7 +12,7 @@ def _print_t(s):
     """
     Print something with a tab instead of newline at the end
     """
-    print(str(s), end="\t")
+    print(s, end="\t")
 
 
 class PrintListener:
@@ -52,8 +52,6 @@ class PrintListener:
         **_kwargs,
     ):
         if exception:
-            if isinstance(exception, RescheduleTask):
-                pass
             if isinstance(exception, CatchResponseError):
                 e = str(exception)
             else:

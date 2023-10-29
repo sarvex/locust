@@ -250,14 +250,13 @@ class FastHttpSession:
 
         if catch_response:
             return ResponseContextManager(response, environment=self.environment, request_meta=request_meta)
-        else:
-            try:
-                response.raise_for_status()
-            except FAILURE_EXCEPTIONS as e:
-                request_meta["exception"] = e
+        try:
+            response.raise_for_status()
+        except FAILURE_EXCEPTIONS as e:
+            request_meta["exception"] = e
 
-            self.environment.events.request.fire(**request_meta)
-            return response
+        self.environment.events.request.fire(**request_meta)
+        return response
 
     def delete(self, url, **kwargs):
         return self.request("DELETE", url, **kwargs)
@@ -372,9 +371,9 @@ class FastHttpUser(User):
         * Catches any unhandled exceptions thrown inside your with-block, marking the sample as failed (instead of exiting the task immediately without even firing the request event)
         """
         headers = headers or {}
-        if not ("Content-Type" in headers or "content-type" in headers):
+        if "Content-Type" not in headers and "content-type" not in headers:
             headers["Content-Type"] = "application/json"
-        if not ("Accept" in headers or "accept" in headers):
+        if "Accept" not in headers and "accept" not in headers:
             headers["Accept"] = "application/json"
         with self.client.request(method, url, catch_response=True, headers=headers, **kwargs) as r:
             resp = cast(RestResponseContextManager, r)
@@ -403,10 +402,9 @@ class FastHttpUser(User):
             except Exception as e:
                 error_lines = []
                 for l in traceback.format_exc().split("\n"):
-                    m = self._callstack_regex.match(l)
-                    if m:
+                    if m := self._callstack_regex.match(l):
                         filename = re.sub(r"/(home|Users/\w*)/", "~/", m.group(1))
-                        error_lines.append(filename + ":" + m.group(2) + m.group(3))
+                        error_lines.append(f"{filename}:{m.group(2)}{m.group(3)}")
                     short_resp = resp.text[:200] if resp.text else resp.text
                     resp.failure(f"{e.__class__.__name__}: {e} at {', '.join(error_lines)}. Response was {short_resp}")
 
@@ -471,10 +469,7 @@ class FastResponse(CompatResponse):
         """
         Get "response" URL, which is the same as the request URL. This is a small deviation from HttpSession, which gets the final (possibly redirected) URL.
         """
-        if self.request is not None:
-            return self.request.url
-
-        return None
+        return self.request.url if self.request is not None else None
 
     def json(self) -> dict:
         """
@@ -496,9 +491,7 @@ class FastResponse(CompatResponse):
         return self._response.get_code() if self._response is not None else 0
 
     def _content(self):
-        if self.headers is None:
-            return None
-        return super()._content()
+        return None if self.headers is None else super()._content()
 
     def success(self):
         raise LocustError(
@@ -590,18 +583,15 @@ class ResponseContextManager(FastResponse):
             return exc is None
 
         if exc:
-            if isinstance(value, ResponseError):
-                self.request_meta["exception"] = value
-                self._report_request()
-            else:
+            if not isinstance(value, ResponseError):
                 return False
+            self.request_meta["exception"] = value
         else:
             try:
                 self.raise_for_status()
             except FAILURE_EXCEPTIONS as e:
                 self.request_meta["exception"] = e
-            self._report_request()
-
+        self._report_request()
         return True
 
     def _report_request(self):

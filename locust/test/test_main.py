@@ -773,11 +773,7 @@ class StandaloneIntegrationTests(ProcessIntegrationTest):
 
     def test_web_options(self):
         port = get_free_tcp_port()
-        if platform.system() == "Darwin":
-            # MacOS only sets up the loopback interface for 127.0.0.1 and not for 127.*.*.*
-            interface = "127.0.0.1"
-        else:
-            interface = "127.0.0.2"
+        interface = "127.0.0.1" if platform.system() == "Darwin" else "127.0.0.2"
         with mock_locustfile() as mocked:
             proc = subprocess.Popen(
                 ["locust", "-f", mocked.file_path, "--web-host", interface, "--web-port", str(port)],

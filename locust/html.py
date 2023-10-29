@@ -35,8 +35,7 @@ def get_html_report(
     start_ts = stats.start_time
     start_time = datetime.datetime.utcfromtimestamp(start_ts).strftime("%Y-%m-%d %H:%M:%S")
 
-    end_ts = stats.last_request_timestamp
-    if end_ts:
+    if end_ts := stats.last_request_timestamp:
         end_time = datetime.datetime.utcfromtimestamp(end_ts).strftime("%Y-%m-%d %H:%M:%S")
     else:
         end_time = start_time
@@ -65,7 +64,7 @@ def get_html_report(
 
     for js_file in js_files:
         path = os.path.join(static_path, js_file)
-        static_js.append("// " + js_file + "\n")
+        static_js.append(f"// {js_file}" + "\n")
         with open(path, encoding="utf8") as f:
             static_js.append(f.read())
         static_js.extend(["", ""])
@@ -75,7 +74,7 @@ def get_html_report(
         css_files = ["tables.css"]
         for css_file in css_files:
             path = os.path.join(static_path, "css", css_file)
-            static_css.append("/* " + css_file + " */")
+            static_css.append(f"/* {css_file} */")
             with open(path, encoding="utf8") as f:
                 static_css.append(f.read())
             static_css.extend(["", ""])
@@ -93,20 +92,27 @@ def get_html_report(
         "total": get_ratio(environment.user_classes, user_spawned, True),
     }
 
-    if use_modern_ui:
-        res = flask_render_template(
+    return (
+        flask_render_template(
             "report.html",
             template_args={
                 "is_report": True,
-                "requests_statistics": [stat.to_dict(escape_string_values=True) for stat in requests_statistics],
-                "failures_statistics": [stat.to_dict() for stat in failures_statistics],
-                "exceptions_statistics": [stat for stat in exceptions_statistics],
+                "requests_statistics": [
+                    stat.to_dict(escape_string_values=True)
+                    for stat in requests_statistics
+                ],
+                "failures_statistics": [
+                    stat.to_dict() for stat in failures_statistics
+                ],
+                "exceptions_statistics": list(exceptions_statistics),
                 "response_time_statistics": [
                     {
                         "name": escape(stat.name),
                         "method": escape(stat.method or ""),
                         **{
-                            str(percentile): stat.get_response_time_percentile(percentile)
+                            str(percentile): stat.get_response_time_percentile(
+                                percentile
+                            )
                             for percentile in PERCENTILES_FOR_HTML_REPORT
                         },
                     }
@@ -125,8 +131,8 @@ def get_html_report(
             theme=theme,
             static_js="\n".join(static_js),
         )
-    else:
-        res = render_template(
+        if use_modern_ui
+        else render_template(
             "report.html",
             int=int,
             round=round,
@@ -147,5 +153,4 @@ def get_html_report(
             percentile1=stats_module.PERCENTILES_TO_CHART[0],
             percentile2=stats_module.PERCENTILES_TO_CHART[1],
         )
-
-    return res
+    )

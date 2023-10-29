@@ -9,6 +9,7 @@ from .testcases import LocustTestCase
 
 class TestWaitTime(LocustTestCase):
     def test_between(self):
+
         class MyUser(User):
             wait_time = between(3, 9)
 
@@ -21,14 +22,14 @@ class TestWaitTime(LocustTestCase):
         u = MyUser(self.environment)
         ts1 = TaskSet1(u)
         ts2 = TaskSet2(u)
-        for i in range(100):
+        for _ in range(100):
             w = u.wait_time()
             self.assertGreaterEqual(w, 3)
             self.assertLessEqual(w, 9)
             w = ts1.wait_time()
             self.assertGreaterEqual(w, 3)
             self.assertLessEqual(w, 9)
-        for i in range(100):
+        for _ in range(100):
             w = ts2.wait_time()
             self.assertGreaterEqual(w, 20)
             self.assertLessEqual(w, 21)
@@ -58,6 +59,7 @@ class TestWaitTime(LocustTestCase):
         self.assertLess(time.perf_counter() - start_time, 0.002)
 
     def test_constant_throughput(self):
+
         class MyUser(User):
             wait_time = constant_throughput(10)
 
@@ -69,7 +71,7 @@ class TestWaitTime(LocustTestCase):
         ts2 = TS(MyUser(self.environment))
 
         previous_time = time.perf_counter()
-        for i in range(7):
+        for _ in range(7):
             ts.wait()
             since_last_run = time.perf_counter() - previous_time
             self.assertLess(abs(0.1 - since_last_run), 0.02)
